@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Spaceship body -->
+  <path d="M50 5 Q35 20, 25 50 Q35 80, 50 95 Q65 80, 75 50 Q65 20, 50 5" fill="#002244" />
+  <!-- Spaceship windows -->
+  <circle cx="40" cy="40" r="3" fill="#ddd" />
+  <circle cx="50" cy="40" r="3" fill="#ddd" />
+  <circle cx="60" cy="40" r="3" fill="#ddd" />
+  <!-- Spaceship wings -->
+  <path d="M10 50 Q30 30, 50 50 L20 75 Q10 65, 10 50" fill="#003366" />
+  <path d="M90 50 Q70 30, 50 50 L80 75 Q90 65, 90 50" fill="#003366" />
+  <!-- Spaceship engines -->
+  <g fill="#66ccff">
+    <circle cx="25" cy="85" r="3" />
+    <circle cx="75" cy="85" r="3" />
+  </g>
+  <!-- Spaceship antenna -->
+  <path d="M50 2.5 L50 12.5" stroke="#bbb" stroke-width="1.5" />
+  <circle cx="50" cy="2.5" r="1" fill="#bbb" />
+</svg>
