@@ -32,7 +32,8 @@ import {
   Space,
   PointerEventTypes,
  MorphTargetManager, NativeEngine, WebGPUEngine,
- 
+ KeyboardInfo,
+ KeyboardEventTypes
 
 } from "@babylonjs/core";
 import '@babylonjs/loaders';
@@ -76,9 +77,6 @@ const roomDetails = () => {
       return Promise.resolve({ scene: undefined, defaultSpheres: () => {},moveSpheres: () => {},playersTurn:'' });
     }    
 
-    let speed: number;
-    let animSpeed;
-    
       const engine = new Engine(canvas, true);
 
       // scene
@@ -88,17 +86,81 @@ const roomDetails = () => {
       scene.gravity = new Vector3(0,-0.75,0);
 
       scene.collisionsEnabled = true;
+      // initialize plugin
+      const havokInstance = await HavokPhysics();
+      // pass the engine to the plugin
+      const hk = new HavokPlugin(true, havokInstance);
+      // enable physics in the scene with a gravity
+      scene.enablePhysics(new Vector3(0, -9.8, 0), hk);
+      
 
 
+        // // This creates and positions a debug camera (non-mesh)
+        // var camera = new FreeCamera("camera1", new Vector3(5,5,22), scene);
+        // camera.setTarget(Vector3.Zero());
+        // camera.attachControl(canvas, true);
 
-        // This creates and positions a debug camera (non-mesh)
-        var camera = new FreeCamera("camera1", new Vector3(5,5,22), scene);
-        camera.setTarget(Vector3.Zero());
-        camera.attachControl(canvas, true);
+        // // This creates ambient light, aiming 0,1,0 - to the sky (non-mesh)
+        // var light = new HemisphericLight("light1", new Vector3(5,5,22), scene);
+        // light.intensity = 0.8;
 
-        // This creates ambient light, aiming 0,1,0 - to the sky (non-mesh)
-        var light = new HemisphericLight("light1", new Vector3(5,5,22), scene);
-        light.intensity = 0.8;
+            // Camera
+        const camera = new ArcRotateCamera('arcCamera', 0, 0, 10, Vector3.Zero(), scene);
+        camera.attachControl(canvas, false);
+        camera.setPosition(new Vector3(5,5,22));
+        camera.lowerRadiusLimit = 5;
+        camera.upperRadiusLimit = 20; 
+        camera.checkCollisions = true;
+
+
+             
+      const loadModels = async (modelName:string) => {
+        try {
+          const result = await SceneLoader.ImportMeshAsync('', '/models/', modelName);
+          // Do something with the result here
+          return result; // You can return the result if needed
+        } catch (error) {
+          // Handle errors if necessary
+          console.error(error);
+          throw error; // Re-throw the error if needed
+        }
+      };
+      
+      // Call the function
+      const {meshes} = await loadModels('ascedantmodelone.glb');
+
+      console.log(meshes)
+
+      let shipAscendant = meshes[0];
+
+      if (shipAscendant){
+
+        shipAscendant.rotation = new Vector3( Math.PI, Math.PI,  Math.PI);
+
+      }
+
+     
+
+      if (shipAscendant) {
+        shipAscendant.position = new Vector3(5.5, 1, 0);
+        shipAscendant.checkCollisions = true
+       // shipAscendant.physicsImpostor = new PhysicsImpostor(shipAscendant,PhysicsImpostor.BoxImpostor,{mass:1,friction:100,restitution:0},scene);
+       
+
+    }
+ 
+     meshes.map(mesh => {
+      mesh.checkCollisions = true;
+     });
+
+    //  const shipAscendant = MeshBuilder.CreateBox('box', {size:1.2}, scene);
+    //  shipAscendant .position.y = 3;
+    //  shipAscendant .position.x = 10;
+    //  shipAscendant .position.z = 10;
+    //  shipAscendant .checkCollisions = true;
+ 
+     
+
 
 
 
@@ -128,166 +190,172 @@ const roomDetails = () => {
 
    // scene.enablePhysics(null, new HavokPlugin(true, await havokModule));
 
-      // initialize plugin
-      const havokInstance = await HavokPhysics();
-      // pass the engine to the plugin
-      const hk = new HavokPlugin(true, havokInstance);
-      // enable physics in the scene with a gravity
-      scene.enablePhysics(new Vector3(0, -9.8, 0), hk);
-
-      const hero = MeshBuilder.CreateBox("hero", {size: 2.0}, scene);
-      hero.position.x = 5.42;
-      hero.position.y = 1.0;
-      hero.position.z = 22.75;
-      //hero.physicsImpostor = new PhysicsImpostor(hero, PhysicsImpostor.BoxImpostor, { mass: 1, restitution: 0.0, friction: 0.1 }, scene);
-
-      const pointer = MeshBuilder.CreateSphere("Sphere", { diameter: 0.01 }, scene);
-      pointer.position.x = 0.0;
-      pointer.position.y = 0.0;
-      pointer.position.z = 0.0;
-      pointer.isPickable = false;
-
-      let moveForward: boolean = false;
-      let moveBackward: boolean = false;
-      let moveRight: boolean = false;
-      let moveLeft: boolean = false;
 
 
-      const onKeyDown = function (event: { keyCode: any; }) {
-        switch (event.keyCode) {
-            case 38: // up
-            case 87: // w
-                moveForward = true;
-                break;
-
-            case 37: // left
-            case 65: // a
-                moveLeft = true; break;
-
-            case 40: // down
-            case 83: // s
-                moveBackward = true;
-                break;
-
-            case 39: // right
-            case 68: // d
-                moveRight = true;
-                break;
-
-            case 32: // space
-                break;
-        }
+          //shipAscendant controls
+    const speed = 0.15
+    const keys = {
+      jump: 0,
+      left: 0,
+      right: 0,
+      forward: 0,
+      back: 0
     };
+    scene.onKeyboardObservable.add((kbInfo) => {
+      const isPressed = kbInfo.type === KeyboardEventTypes.KEYDOWN ? 1 : 0;
+      const key = kbInfo.event.key;
+      if (key === 'a' || key === 'A') keys.left = isPressed;
+      if (key === 'd' || key === 'D') keys.right = isPressed;
+      if (key === 'w' || key === 'W') keys.forward = isPressed;
+      if (key === 's' || key === 'S') keys.back = isPressed;
+      if (key === " ") keys.jump = isPressed;
+    });
 
-    const onKeyUp = function (event: { keyCode: any; }) {
-        switch (event.keyCode) {
-            case 38: // up
-            case 87: // w
-                moveForward = false;
-                break;
 
-            case 37: // left
-            case 65: // a
-                moveLeft = false;
-                break;
+      
+    
 
-            case 40: // down
-            case 83: // a
-                moveBackward = false;
-                break;
+  
+    // Camera followshipAscendant
+    
 
-            case 39: // right
-            case 68: // d
-                moveRight = false;
-                break;
-        }
-    };
+  //     const hero = MeshBuilder.CreateBox("hero", {size: 2.0}, scene);
+  //     hero.position.x = 5.42;
+  //     hero.position.y = 1.0;
+  //     hero.position.z = 22.75;
+  //     //hero.physicsImpostor = new PhysicsImpostor(hero, PhysicsImpostor.BoxImpostor, { mass: 1, restitution: 0.0, friction: 0.1 }, scene);
+
+  //     const pointer = MeshBuilder.CreateSphere("Sphere", { diameter: 0.01 }, scene);
+  //     pointer.position.x = 0.0;
+  //     pointer.position.y = 0.0;
+  //     pointer.position.z = 0.0;
+  //     pointer.isPickable = false;
+
+  //     let moveForward: boolean = false;
+  //     let moveBackward: boolean = false;
+  //     let moveRight: boolean = false;
+  //     let moveLeft: boolean = false;
+
+
+  //     const onKeyDown = function (event: { keyCode: any; }) {
+  //       switch (event.keyCode) {
+  //           case 38: // up
+  //           case 87: // w
+  //               moveForward = true;
+  //               break;
+
+  //           case 37: // left
+  //           case 65: // a
+  //               moveLeft = true; break;
+
+  //           case 40: // down
+  //           case 83: // s
+  //               moveBackward = true;
+  //               break;
+
+  //           case 39: // right
+  //           case 68: // d
+  //               moveRight = true;
+  //               break;
+
+  //           case 32: // space
+  //               break;
+  //       }
+  //   };
+
+  //   const onKeyUp = function (event: { keyCode: any; }) {
+  //       switch (event.keyCode) {
+  //           case 38: // up
+  //           case 87: // w
+  //               moveForward = false;
+  //               break;
+
+  //           case 37: // left
+  //           case 65: // a
+  //               moveLeft = false;
+  //               break;
+
+  //           case 40: // down
+  //           case 83: // a
+  //               moveBackward = false;
+  //               break;
+
+  //           case 39: // right
+  //           case 68: // d
+  //               moveRight = false;
+  //               break;
+  //       }
+  //   };
     
     
 
-    document.addEventListener('keydown',onKeyDown,false);
-    document.addEventListener('keyup',onKeyUp,false);
+  //   document.addEventListener('keydown',onKeyDown,false);
+  //   document.addEventListener('keyup',onKeyUp,false);
 
 
     scene.registerBeforeRender(() => {
-      const SPEED = 0.1;
-  
-      // Get the direction the camera is facing
-      const forward = new Vector3(
-          Math.sin(camera.rotation.y),
-          0,
-          Math.cos(camera.rotation.y)
-      );
-  
-      const right = new Vector3(
-          Math.cos(camera.rotation.y),
-          0,
-          -Math.sin(camera.rotation.y)
-      );
-  
-      let moveX = 0;
-      let moveZ = 0;
-  
-      if (moveForward) {
-          moveZ += SPEED;
+      if (shipAscendant){
+
+        const cameraDirectionFwd = camera.getForwardRay().direction;
+        const normalFwd = (new Vector3(cameraDirectionFwd.x, 0, cameraDirectionFwd.z)).normalize();
+    
+       //  if (keys.jump) {
+       //  shipAscendant.physicsImpostor?.applyImpulse(new Vector3(0, 1, 0),shipAscendant.getAbsolutePosition());
+       //  }
+        if (keys.right) {
+         shipAscendant.locallyTranslate(new Vector3(-speed, 0, 0));
+        }
+        if (keys.left) {
+         shipAscendant.locallyTranslate(new Vector3(speed, 0, 0));
+        }
+        if (keys.back) {
+         //shipAscendant.lookAt(shipAscendant.position.add(normalFwd), 0, 0, 0);
+         shipAscendant.position =shipAscendant.position.add(new Vector3(normalFwd.x * speed, 0, normalFwd.z * speed));
+        }
+        if (keys.forward) {
+        //  shipAscendant.lookAt(shipAscendant.position.add(normalFwd), 0, 0, 0);
+         shipAscendant.position =shipAscendant.position.add(new Vector3(-normalFwd.x * speed, 0, -normalFwd.z * speed));
+        }
+        camera.setTarget(shipAscendant);
+        
       }
-      if (moveBackward) {
-          moveZ -= SPEED;
-      }
-      if (moveRight) {
-          moveX += SPEED;
-      }
-      if (moveLeft) {
-          moveX -= SPEED;
-      }
-  
-      // Transform the movement direction relative to camera orientation
-      const movement = forward.scale(moveZ).add(right.scale(moveX));
-  
-      // Update hero position based on transformed movement
-      hero.position.addInPlace(movement);
-  
-      // Update camera position relative to hero
-      camera.position.x = hero.position.x;
-      camera.position.z = hero.position.z;
-      pointer.position = camera.getTarget();
 
   });
   
   
 
-    let isLocked = false;
+  //   let isLocked = false;
     
 
-    scene.onPointerDown = (evt) => {
-      if (!isLocked){
-        canvas.requestPointerLock = canvas.requestPointerLock || canvas.msRequestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
-        if (canvas.requestPointerLock){
-          canvas.requestPointerLock();
-        }
-      }
-    }
+  //   scene.onPointerDown = (evt) => {
+  //     if (!isLocked){
+  //       canvas.requestPointerLock = canvas.requestPointerLock || canvas.msRequestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+  //       if (canvas.requestPointerLock){
+  //         canvas.requestPointerLock();
+  //       }
+  //     }
+  //   }
 
 
-    	// Event listener when the pointerlock is updated (or removed by pressing ESC for example).
-	const pointerlockchange =  () => {
+  //   	// Event listener when the pointerlock is updated (or removed by pressing ESC for example).
+	// const pointerlockchange =  () => {
 
-		let controlEnabled = (document as any).mozPointerLockElement || (document as any).webkitPointerLockElement || (document as any).msPointerLockElement || document.pointerLockElement || null;
+	// 	let controlEnabled = (document as any).mozPointerLockElement || (document as any).webkitPointerLockElement || (document as any).msPointerLockElement || document.pointerLockElement || null;
 		
-		// If the user is already locked
-		if (!controlEnabled) {
-			//camera.detachControl(canvas);
-			isLocked = false;
-		} else {
-			//camera.attachControl(canvas);
-			isLocked = true;
-		}
-	};
-  	// Attach events to the document
-	document.addEventListener("pointerlockchange", pointerlockchange, false);
-	document.addEventListener("mspointerlockchange", pointerlockchange, false);
-	document.addEventListener("mozpointerlockchange", pointerlockchange, false);
-	document.addEventListener("webkitpointerlockchange", pointerlockchange, false);
+	// 	// If the user is already locked
+	// 	if (!controlEnabled) {
+	// 		//camera.detachControl(canvas);
+	// 		isLocked = false;
+	// 	} else {
+	// 		//camera.attachControl(canvas);
+	// 		isLocked = true;
+	// 	}
+	// };
+  // 	// Attach events to the document
+	// document.addEventListener("pointerlockchange", pointerlockchange, false);
+	// document.addEventListener("mspointerlockchange", pointerlockchange, false);
+	// document.addEventListener("mozpointerlockchange", pointerlockchange, false);
+	// document.addEventListener("webkitpointerlockchange", pointerlockchange, false);
 
 
   const border0 = MeshBuilder.CreateBox("border0", {size : 1.0}, scene);
@@ -333,67 +401,29 @@ const roomDetails = () => {
       //   console.log('meshes',meshes)
       // })
 // Subscribe to the onMouseWheelObservable event
-      scene.onPointerObservable.add((eventData) => {
-        if (eventData.type === PointerEventTypes.POINTERWHEEL) {
-            const event = eventData.event as WheelEvent;
-            // Check if scrolled up or down
-            const delta = event.deltaY;
-            // Adjust zoom speed as needed
-            const zoomSpeed = 0.1;
+      // scene.onPointerObservable.add((eventData) => {
+      //   if (eventData.type === PointerEventTypes.POINTERWHEEL) {
+      //       const event = eventData.event as WheelEvent;
+      //       // Check if scrolled up or down
+      //       const delta = event.deltaY;
+      //       // Adjust zoom speed as needed
+      //       const zoomSpeed = 0.1;
 
-            // Zoom in or out based on scroll direction
-            if (delta < 0) {
-                // Scroll up, zoom in
-                camera.position.addInPlace(camera.getDirection(new Vector3(0, 0, 1)).scale(zoomSpeed));
-            } else if (delta > 0) {
-                // Scroll down, reverse zoom (zoom out)
-                camera.position.subtractInPlace(camera.getDirection(new Vector3(0, 0, 1)).scale(zoomSpeed));
-            }
-        }
-      });
+      //       // Zoom in or out based on scroll direction
+      //       if (delta < 0) {
+      //           // Scroll up, zoom in
+      //           camera.position.addInPlace(camera.getDirection(new Vector3(0, 0, 1)).scale(zoomSpeed));
+      //       } else if (delta > 0) {
+      //           // Scroll down, reverse zoom (zoom out)
+      //           camera.position.subtractInPlace(camera.getDirection(new Vector3(0, 0, 1)).scale(zoomSpeed));
+      //       }
+      //   }
+      // });
 
     
 
 
-      
-      const loadModels = async (modelName:string) => {
-        try {
-          const result = await SceneLoader.ImportMeshAsync('', '/models/', modelName);
-          // Do something with the result here
-          return result; // You can return the result if needed
-        } catch (error) {
-          // Handle errors if necessary
-          console.error(error);
-          throw error; // Re-throw the error if needed
-        }
-      };
-      
-      // Call the function
-      const {meshes} = await loadModels('ascedantmodelone.glb');
-
-      //console.log(meshes)
-
-      let boardRootMesh = meshes.find(mesh => mesh.name === '__root__');
-
-      if (boardRootMesh){
-
-        boardRootMesh.rotation = new Vector3( Math.PI, Math.PI,  Math.PI);
-
-      }
-
-     
-
-      if (boardRootMesh) {
-        boardRootMesh.position = new Vector3(5.5, 1, 0);
-        boardRootMesh.checkCollisions = true
-       
-
-    }
-
-     meshes.map(mesh => {
-      mesh.checkCollisions = true;
-     });
-
+ 
 
       const test_mesh = meshes[110];
 
@@ -467,12 +497,28 @@ const roomDetails = () => {
 
 
    
-      // const player = player_meshes.find(mesh => mesh.name === '__root__');
+      // constshipAscendant =shipAscendant_meshes.find(mesh => mesh.name === '__root__');
+
+      
+    // Iterate through all meshes in the scene
+        scene.meshes.forEach(mesh => {
+          // Check if the mesh is within the camera's view frustum
+          if (mesh.name == '__root__') {
+
+            console.log(mesh)
+              
+          }
+      });
+
+
+
 
 
       // Assuming 'scene' is your Babylon.js scene object
       engine.runRenderLoop(() => {
 
+
+    
 
         scene.render();
       });
